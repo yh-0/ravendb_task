@@ -6,27 +6,52 @@ namespace GetTvShowTotalLength
 {
     internal class Program
     {
-        private static readonly string urlBase = "https://api.tvmaze.com/";
+        private static readonly string urlBase = "https://api.tvmaze.com";
 
-        private static int getShowEpisodesLength(string showName)
-        {
-            return 0;
-        }
-
-        private static async Task<int> getShowId(string showName)
+        private static async Task<int> getShowEpisodesLength(int showId)
         {
             // Build url
-            string cleanShowName = showName.Replace("\"", ""); //TODO: clean in method above or even main
             StringBuilder sb = new StringBuilder();
             sb.Append(urlBase);
-            sb.Append("search/shows?q=");
-            sb.Append(cleanShowName);
+            sb.Append("/shows/");
+            sb.Append(showId);
+            sb.Append("/episodes");
             string url = sb.ToString();
 
             // Fetch data from API
             using HttpClient client = new HttpClient();
             HttpResponseMessage response = await client.GetAsync(url);
-            if (!response.IsSuccessStatusCode) eprint($"Error: fetching shows data from API failed with code {response.StatusCode}", 10);
+            if (response.IsSuccessStatusCode == false) eprint($"Error: fetching episodes data from API failed with code {response.StatusCode}", 10);
+
+            // Deserialize fetched data to dynamic object
+            string jsonResponse = await response.Content.ReadAsStringAsync();
+            var searchResults = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(jsonResponse);
+            if (searchResults is null) eprint("Error: no matching show episodes found.", 10);
+
+            // Sum up runtimes of all episodes
+            int showRuntime = 0;
+            foreach (dynamic result in searchResults) // Dereference of a possibly null reference dealt with in eprint() 3 lines above
+            {
+                int? episodeRuntime = result.runtime;
+                if (episodeRuntime != null) showRuntime += (int)episodeRuntime;
+            }
+
+            return showRuntime;
+        }
+
+        private static async Task<int> getShowId(string showName)
+        {
+            // Build url
+            StringBuilder sb = new StringBuilder();
+            sb.Append(urlBase);
+            sb.Append("/search/shows?q=");
+            sb.Append(showName);
+            string url = sb.ToString();
+
+            // Fetch data from API
+            using HttpClient client = new HttpClient();
+            HttpResponseMessage response = await client.GetAsync(url);
+            if (response.IsSuccessStatusCode == false) eprint($"Error: fetching shows data from API failed with code {response.StatusCode}", 10);
 
             // Deserialize fetched data to dynamic object
             string jsonResponse = await response.Content.ReadAsStringAsync();
@@ -38,7 +63,7 @@ namespace GetTvShowTotalLength
             var showIdsByEndDate = new Dictionary<int, DateTime>();
             foreach (dynamic result in searchResults) // Dereference of a possibly null reference dealt with in eprint() 3 lines above
             {
-                Tuple<int, DateTime>? tuple = parseSearchResult(result, cleanShowName);
+                Tuple<int, DateTime>? tuple = parseSearchResult(result, showName);
                 if (tuple is null) continue;
                 showIdsByEndDate[tuple.Item1] = tuple.Item2;
             }
@@ -64,7 +89,7 @@ namespace GetTvShowTotalLength
             string showNameLower = showName.ToLower();
 
             // If the result has different name than searched show, return null
-            if (!String.Equals(nameLower, showNameLower)) return null;
+            if (String.Equals(nameLower, showNameLower) == false) return null;
 
             // If the result has the exact same name as searched show but no end date, return it regardless
             // 0001-01-01 date gives the result lower priority if there are results with an actual date
@@ -93,8 +118,11 @@ namespace GetTvShowTotalLength
                 Console.WriteLine("Usage: dotnet run <SHOW_NAME>");
             }
 
-            var res = await getShowId(args[0]);
-            System.Console.WriteLine(res);
+            string cleanShowName = args[0].Replace("\"", "");
+
+            int id = await getShowId(cleanShowName);
+            int totalRuntime = await getShowEpisodesLength(id);
+            System.Console.WriteLine(totalRuntime);
         }
     }
 }
