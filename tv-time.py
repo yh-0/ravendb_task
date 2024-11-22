@@ -5,7 +5,11 @@ from pathlib import Path
 from argparse import ArgumentParser
 
 
-CS_APP_PATH: Path = Path(os.getenv("GET_TVSHOW_TOTAL_LENGTH_BIN"))
+try:
+    CS_APP_PATH: Path = Path(os.getenv("GET_TVSHOW_TOTAL_LENGTH_BIN"))
+except TypeError as e:
+    print("Environment variable GET_TVSHOW_TOTAL_LENGTH_BIN doesn't exist. Exiting.")
+    exit(0)
 
 
 async def get_show_length(show: str, lengths_by_show: dict[str, int]) -> int:
@@ -44,13 +48,9 @@ async def main() -> None:
     show_list_file = args.SHOW_LIST_FILE
     show_list_file_path = Path(show_list_file)
 
-    if CS_APP_PATH is None:
-        print("Environment variable GET_TVSHOW_TOTAL_LENGTH_BIN doesn't exist. Exiting.")
-        exit(0)
-
     if not os.path.exists(CS_APP_PATH):
-        print(f"Path {CS_APP_PATH} doesn't exist. Make sure to build C# project with")
-        print(f"dotnet build GetTvShowTotalLength.csproj")
+        print(f"Path {CS_APP_PATH} doesn't exist. Make sure to build C# project with 'dotnet build GetTvShowTotalLength.csproj'")
+        print(f"Exiting.")
         exit(0)
 
     with open(show_list_file_path, "r") as file:
