@@ -30,5 +30,5 @@ python3 tv-time.py <show_list_file>
 To run C# application
 ```bash
 cd ./bin/Debug/net9.0
-./GetTvShowTotalLength <show_name> # wrap show name in double quotes if it contains space
+./GetTvShowTotalLength <show_name> # wrap show name in double quotes if it contains spaces
 ```
