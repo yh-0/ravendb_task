@@ -9,7 +9,7 @@ try:
     CS_APP_PATH: Path = Path(os.getenv("GET_TVSHOW_TOTAL_LENGTH_BIN"))
 except TypeError as e:
     print("Environment variable GET_TVSHOW_TOTAL_LENGTH_BIN doesn't exist. Exiting.")
-    exit(0)
+    exit(1)
 
 
 async def get_show_length(show: str, lengths_by_show: dict[str, int]) -> int:
@@ -65,4 +65,10 @@ async def main() -> None:
     find_shortest_and_longest(lengths_by_show)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except RuntimeError as e:
+        print(f"Runtime Error: {e}")
+        print("Make sure to build C# project with 'dotnet build GetTvShowTotalLength.csproj'")
+        print("Exiting.")
+        exit(2)
