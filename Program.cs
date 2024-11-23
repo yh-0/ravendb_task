@@ -1,4 +1,4 @@
-﻿using System.Data.Common;
+using System.Data.Common;
 using System.Text;
 // using Newtonsoft.Json;
 using System.Text.Json;
@@ -99,40 +99,40 @@ namespace GetTvShowTotalLength
 
             // Deserialize fetched data to dynamic object
             string jsonResponse = await response.Content.ReadAsStringAsync();
-            var searchResults = JsonSerializer.Deserialize<List<ShowWrapperDTO>>(jsonResponse);
-            if (searchResults is null)
+            var showWrappers = JsonSerializer.Deserialize<List<ShowWrapperDTO>>(jsonResponse);
+            if (showWrappers is null)
             {
                 System.Console.Error.WriteLine("Error: no matching shows found.");
                 Environment.Exit(10);
             }
 
             // Unwrap ShowWrapperDTO to ShowDTO
-            var showResults = searchResults
+            var shows = showWrappers
                 .Select(result => result.Show)
                 .ToList();
-            if (searchResults.Count == 0)
+            if (shows.Count == 0)
             {
                 System.Console.Error.WriteLine("Error: no matching shows found.");
                 Environment.Exit(10);
             }
 
             // Parse and sort show results
-            var sortedShowResults = showResults
+            var sortedShows = shows
                 .Select(show => parseSearchResult(show, showName))
                 .Where(parsedShow => parsedShow != null)
                 .OrderByDescending(parsedShow => parsedShow?.Ended)
                 .ToList();
-            if (sortedShowResults is null)
+            if (sortedShows is null)
             {
                 System.Console.Error.WriteLine("Error: no matching shows found.");
                 Environment.Exit(10);
             }
 
             // If there are no results with the exact same name, use first result
-            if (sortedShowResults.Count == 0) return showResults[0].Id;
+            if (sortedShows.Count == 0) return shows[0].Id;
 
             // Return show with matching name and most recent ended date
-            var selectedShow = sortedShowResults.FirstOrDefault();
+            var selectedShow = sortedShows.FirstOrDefault();
             if (selectedShow is null)
             {
                 System.Console.Error.WriteLine("Error: no matching shows found.");
