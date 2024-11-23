@@ -1,6 +1,4 @@
-﻿using System.Data.Common;
-using System.Text;
-// using Newtonsoft.Json;
+﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -65,7 +63,7 @@ namespace GetTvShowTotalLength
                 Environment.Exit(10);
             }
 
-            // Deserialize fetched data to dynamic object
+            // Deserialize fetched data to list of episodes
             string jsonResponse = await response.Content.ReadAsStringAsync();
             var episodes = JsonSerializer.Deserialize<List<EpisodeDTO>>(jsonResponse);
             if (episodes is null)
@@ -103,7 +101,7 @@ namespace GetTvShowTotalLength
                 Environment.Exit(10);
             }
 
-            // Deserialize fetched data to dynamic object
+            // Deserialize fetched data to list of show wrappers
             string jsonResponse = await response.Content.ReadAsStringAsync();
             var showWrappers = JsonSerializer.Deserialize<List<ShowWrapperDTO>>(jsonResponse);
             if (showWrappers is null)
@@ -112,7 +110,7 @@ namespace GetTvShowTotalLength
                 Environment.Exit(10);
             }
 
-            // Unwrap ShowWrapperDTO to ShowDTO
+            // Unwrap show wrappers to shows
             var shows = showWrappers
                 .Select(result => result.Show)
                 .ToList();
