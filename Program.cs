@@ -1,9 +1,41 @@
 ﻿using System.Data.Common;
 using System.Text;
-using Newtonsoft.Json;
+// using Newtonsoft.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace GetTvShowTotalLength
 {
+    internal class ShowWrapperDTO
+    {
+        [JsonPropertyName("show")]
+        public required ShowDTO Show { get; set; }
+    }
+
+    internal class ShowDTO
+    {
+        [JsonPropertyName("name")]
+        public required string Name { get; set; }
+
+        [JsonPropertyName("id")]
+        public required int Id { get; set; }
+
+        [JsonPropertyName("ended")]
+        public string? Ended { get; set; }
+    }
+
+    internal class ParsedShow
+    {
+        public int Id { get; set; }
+        public DateTime Ended { get; set; }
+
+        public ParsedShow(int id, DateTime ended)
+        {
+            Id = id;
+            Ended = ended;
+        }
+    }
+
     internal class Program
     {
         private static readonly string urlBase = "https://api.tvmaze.com";
@@ -21,12 +53,20 @@ namespace GetTvShowTotalLength
             // Fetch data from API
             using HttpClient client = new HttpClient();
             HttpResponseMessage response = await client.GetAsync(url);
-            if (response.IsSuccessStatusCode == false) printError($"Error: fetching episodes data from API failed with code {response.StatusCode}", 10);
+            if (response.IsSuccessStatusCode == false)
+            {
+                System.Console.Error.WriteLine($"Error: fetching episodes data from API failed with code {response.StatusCode}");
+                Environment.Exit(10);
+            }
 
             // Deserialize fetched data to dynamic object
             string jsonResponse = await response.Content.ReadAsStringAsync();
             var searchResults = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(jsonResponse);
-            if (searchResults is null) printError("Error: no matching show episodes found.", 10);
+            if (searchResults is null)
+            {
+                System.Console.Error.WriteLine("Error: no matching show episodes found.");
+                Environment.Exit(10);
+            }
 
             // Sum up runtimes of all episodes
             int showRuntime = 0;
@@ -51,38 +91,62 @@ namespace GetTvShowTotalLength
             // Fetch data from API
             using HttpClient client = new HttpClient();
             HttpResponseMessage response = await client.GetAsync(url);
-            if (response.IsSuccessStatusCode == false) printError($"Error: fetching shows data from API failed with code {response.StatusCode}", 10);
+            if (response.IsSuccessStatusCode == false)
+            {
+                System.Console.Error.WriteLine($"Error: fetching shows data from API failed with code {response.StatusCode}");
+                Environment.Exit(10);
+            }
 
             // Deserialize fetched data to dynamic object
             string jsonResponse = await response.Content.ReadAsStringAsync();
-            var searchResults = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(jsonResponse);
-            if (searchResults is null) printError("Error: no matching shows found.", 10);
-
-            // Generate dictionary of found shows
-            // dict[show_id] = show_end_date
-            var showIdsByEndDate = new Dictionary<int, DateTime>();
-            foreach (dynamic result in searchResults) // Dereference of a possibly null reference dealt with in eprint() 3 lines above
+            var searchResults = JsonSerializer.Deserialize<List<ShowWrapperDTO>>(jsonResponse);
+            if (searchResults is null)
             {
-                Tuple<int, DateTime>? tuple = parseSearchResult(result, showName);
-                if (tuple is null) continue;
-                showIdsByEndDate[tuple.Item1] = tuple.Item2;
+                System.Console.Error.WriteLine("Error: no matching shows found.");
+                Environment.Exit(10);
+            }
+
+            // Unwrap ShowWrapperDTO to ShowDTO
+            var showResults = searchResults
+                .Select(result => result.Show)
+                .ToList();
+            if (searchResults.Count == 0)
+            {
+                System.Console.Error.WriteLine("Error: no matching shows found.");
+                Environment.Exit(10);
+            }
+
+            // Parse and sort show results
+            var sortedShowResults = showResults
+                .Select(show => parseSearchResult(show, showName))
+                .Where(parsedShow => parsedShow != null)
+                .OrderByDescending(parsedShow => parsedShow?.Ended)
+                .ToList();
+            if (sortedShowResults is null)
+            {
+                System.Console.Error.WriteLine("Error: no matching shows found.");
+                Environment.Exit(10);
             }
 
             // If there are no results with the exact same name, use first result
-            string defaultStrId = searchResults[0].show.id;
-            if (showIdsByEndDate.Count == 0) return int.Parse(defaultStrId);
+            if (sortedShowResults.Count == 0) return showResults[0].Id;
 
-            // If there are multiple results with the exact same name, select result with most recent 'ended' date
-            var sortedShows = from show in showIdsByEndDate orderby show.Value descending select show;
-            return sortedShows.FirstOrDefault().Key;
+            // Return show with matching name and most recent ended date
+            var selectedShow = sortedShowResults.FirstOrDefault();
+            if (selectedShow is null)
+            {
+                System.Console.Error.WriteLine("Error: no matching shows found.");
+                Environment.Exit(10);
+            }
+            return selectedShow.Id;
         }
 
-        private static Tuple<int, DateTime>? parseSearchResult(dynamic result, string showName)
+        private static ParsedShow? parseSearchResult(ShowDTO show, string showName)
         {
             // Extract needed fields
-            int id = result.show.id;
-            string name = result.show.name;
-            string? strEnded = result.show.ended;
+            int id = show.Id;
+            string name = show.Name;
+            string? strEnded = show.Ended;
 
             // Prepare strings for comparison
             string nameLower = name.ToLower();
@@ -93,7 +157,7 @@ namespace GetTvShowTotalLength
 
             // If the result has the exact same name as searched show but no end date, return it regardless
             // 0001-01-01 date gives the result lower priority if there are results with an actual date
-            if (strEnded is null) return new Tuple<int, DateTime>(id, new DateTime(1, 1, 1));
+            if (strEnded is null) return new ParsedShow(id, new DateTime(1, 1, 1));
 
             // Parse 'ended' string to DateTime
             int year = int.Parse(strEnded.Split("-")[0]);
@@ -101,13 +165,7 @@ namespace GetTvShowTotalLength
             int day = int.Parse(strEnded.Split("-")[2]);
             DateTime ended = new DateTime(year, month, day);
 
-            return new Tuple<int, DateTime>(id, ended);
-        }
-
-        private static void printError(string errorStr, int exitCode)
-        {
-            System.Console.Error.WriteLine(errorStr);
-            Environment.Exit(exitCode);
+            return new ParsedShow(id, ended);
         }
 
         static async Task Main(string[] args)
@@ -120,7 +178,8 @@ namespace GetTvShowTotalLength
 
             string cleanShowName = args[0].Replace("\"", "");
 
-            int id = await getShowId(cleanShowName);
+            int id = await getShowId("girls");
+            // int id = await getShowId(cleanShowName);
             int totalRuntime = await getShowEpisodesLength(id);
             System.Console.WriteLine(totalRuntime);
         }
