@@ -21,12 +21,12 @@ namespace GetTvShowTotalLength
             // Fetch data from API
             using HttpClient client = new HttpClient();
             HttpResponseMessage response = await client.GetAsync(url);
-            if (response.IsSuccessStatusCode == false) eprint($"Error: fetching episodes data from API failed with code {response.StatusCode}", 10);
+            if (response.IsSuccessStatusCode == false) printError($"Error: fetching episodes data from API failed with code {response.StatusCode}", 10);
 
             // Deserialize fetched data to dynamic object
             string jsonResponse = await response.Content.ReadAsStringAsync();
             var searchResults = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(jsonResponse);
-            if (searchResults is null) eprint("Error: no matching show episodes found.", 10);
+            if (searchResults is null) printError("Error: no matching show episodes found.", 10);
 
             // Sum up runtimes of all episodes
             int showRuntime = 0;
@@ -51,12 +51,12 @@ namespace GetTvShowTotalLength
             // Fetch data from API
             using HttpClient client = new HttpClient();
             HttpResponseMessage response = await client.GetAsync(url);
-            if (response.IsSuccessStatusCode == false) eprint($"Error: fetching shows data from API failed with code {response.StatusCode}", 10);
+            if (response.IsSuccessStatusCode == false) printError($"Error: fetching shows data from API failed with code {response.StatusCode}", 10);
 
             // Deserialize fetched data to dynamic object
             string jsonResponse = await response.Content.ReadAsStringAsync();
             var searchResults = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(jsonResponse);
-            if (searchResults is null) eprint("Error: no matching shows found.", 10);
+            if (searchResults is null) printError("Error: no matching shows found.", 10);
 
             // Generate dictionary of found shows
             // dict[show_id] = show_end_date
@@ -104,7 +104,7 @@ namespace GetTvShowTotalLength
             return new Tuple<int, DateTime>(id, ended);
         }
 
-        private static void eprint(string errorStr, int exitCode)
+        private static void printError(string errorStr, int exitCode)
         {
             System.Console.Error.WriteLine(errorStr);
             Environment.Exit(exitCode);
