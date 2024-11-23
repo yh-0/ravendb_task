@@ -1,4 +1,4 @@
-using System.Data.Common;
+﻿using System.Data.Common;
 using System.Text;
 // using Newtonsoft.Json;
 using System.Text.Json;
@@ -36,6 +36,12 @@ namespace GetTvShowTotalLength
         }
     }
 
+    internal class EpisodeDTO
+    {
+        [JsonPropertyName("runtime")]
+        public int? Runtime { get; set; }
+    }
+
     internal class Program
     {
         private static readonly string urlBase = "https://api.tvmaze.com";
@@ -61,8 +67,8 @@ namespace GetTvShowTotalLength
 
             // Deserialize fetched data to dynamic object
             string jsonResponse = await response.Content.ReadAsStringAsync();
-            var searchResults = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(jsonResponse);
-            if (searchResults is null)
+            var episodes = JsonSerializer.Deserialize<List<EpisodeDTO>>(jsonResponse);
+            if (episodes is null)
             {
                 System.Console.Error.WriteLine("Error: no matching show episodes found.");
                 Environment.Exit(10);
@@ -70,9 +76,9 @@ namespace GetTvShowTotalLength
 
             // Sum up runtimes of all episodes
             int showRuntime = 0;
-            foreach (dynamic result in searchResults) // Dereference of a possibly null reference dealt with in eprint() 3 lines above
+            foreach (var episode in episodes)
             {
-                int? episodeRuntime = result.runtime;
+                int? episodeRuntime = episode.Runtime;
                 if (episodeRuntime != null) showRuntime += (int)episodeRuntime;
             }
 
@@ -178,8 +184,7 @@ namespace GetTvShowTotalLength
 
             string cleanShowName = args[0].Replace("\"", "");
 
-            int id = await getShowId("girls");
-            // int id = await getShowId(cleanShowName);
+            int id = await getShowId(cleanShowName);
             int totalRuntime = await getShowEpisodesLength(id);
             System.Console.WriteLine(totalRuntime);
         }
