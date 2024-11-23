@@ -159,17 +159,18 @@ namespace GetTvShowTotalLength
             // If the result has different name than searched show, return null
             if (String.Equals(nameLower, showNameLower) == false) return null;
 
+            // Parse DateTime from string
+            bool isParsed = DateTime.TryParseExact(
+                strEnded,
+                "yyyy-MM-dd",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None,
+                out DateTime parsedDate
+            );
+
             // If the result has the exact same name as searched show but no end date, return it regardless
             // 0001-01-01 date gives the result lower priority if there are results with an actual date
-            if (strEnded is null) return new ParsedShow(id, new DateTime(1, 1, 1));
-
-            // Parse 'ended' string to DateTime
-            int year = int.Parse(strEnded.Split("-")[0]);
-            int month = int.Parse(strEnded.Split("-")[1]);
-            int day = int.Parse(strEnded.Split("-")[2]);
-            DateTime ended = new DateTime(year, month, day);
-
-            return new ParsedShow(id, ended);
+            return isParsed ? new ParsedShow(id, parsedDate) : new ParsedShow(id, new DateTime(1, 1, 1));
         }
 
         static async Task Main(string[] args)
